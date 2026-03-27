@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Local Scribe</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 min-h-screen flex items-center justify-center p-6">
+
+    <div class="bg-white p-8 rounded-2xl shadow-xl max-w-xl w-full">
+        <h1 class="text-3xl font-bold text-gray-800 mb-2">🎙️ Local Scribe</h1>
+        <p class="text-gray-500 mb-8">Upload audio, review the AI's notes, and generate your PDF.</p>
+
+        <!-- STEP 1: Upload Form -->
+        <form id="uploadForm" class="space-y-6">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Document Format</label>
+                <select id="formatName" required
+                        class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white">
+                    <option value="" disabled selected>Loading formats...</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Audio Recording</label>
+                <input type="file" id="audioFile" accept="audio/*" required
+                       class="w-full text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+            </div>
+            <button type="submit" id="submitBtn" 
+                    class="w-full bg-blue-600 text-white font-semibold py-3 rounded-lg hover:bg-blue-700 transition duration-200">
+                1. Transcribe & Extract
+            </button>
+        </form>
+
+        <!-- Loading Spinner -->
+        <div id="loading" class="hidden mt-6 text-center">
+            <div class="animate-spin inline-block w-6 h-6 border-[3px] border-current border-t-transparent text-blue-600 rounded-full" role="status"></div>
+            <p id="loadingText" class="text-gray-500 mt-2 animate-pulse">AI is listening...</p>
+        </div>
+
+        <!-- STEP 2: Review and Edit Form (Hidden initially) -->
+        <div id="editorSection" class="hidden mt-8 pt-6 border-t border-gray-200">
+            <h3 class="text-lg font-bold text-gray-800 mb-4">✍️ Review & Edit</h3>
+            <form id="editorForm" class="space-y-4">
+                <div id="dynamicFields" class="space-y-4">
+                    <!-- JavaScript will inject input fields here automatically -->
+                </div>
+                <button type="submit" id="generatePdfBtn" 
+                        class="w-full bg-green-600 text-white font-semibold py-3 rounded-lg hover:bg-green-700 transition duration-200 mt-4">
+                    2. Generate PDF
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const formatNameInput = document.getElementById('formatName');
+        const fileInput = document.getElementById('audioFile');
+        const uploadForm = document.getElementById('uploadForm');
+        const editorSection = document.getElementById('editorSection');
+        const dynamicFields = document.getElementById('dynamicFields');
+        const editorForm = document.getElementById('editorForm');
+        const loading = document.getElementById('loading');
+        const loadingText = document.getElementById('loadingText');
+
+        // Fetch available formats on page load ---
+        document.addEventListener('DOMContentLoaded', async () => {
+            const formatSelect = document.getElementById('formatName');
+            try {
+                const response = await fetch('/formats');
+                const data = await response.json();
+                
+                formatSelect.innerHTML = ''; // Clear the "Loading..." text
+                
+                if (data.formats.length === 0) {
+                    formatSelect.innerHTML = '<option disabled>No formats found</option>';
+                    return;
+                }
+
+                // Add each format as an option in the dropdown
+                data.formats.forEach(format => {
+                    const option = document.createElement('option');
+                    option.value = format;
+                    // Capitalize the first letter so "medical" looks like "Medical"
+                    option.textContent = format.charAt(0).toUpperCase() + format.slice(1);
+                    formatSelect.appendChild(option);
+                });
+            } catch (error) {
+                console.error("Failed to load formats", error);
+                formatSelect.innerHTML = '<option disabled>Error loading formats</option>';
+            }
+        });
+        // -------------------------------------------------
+
+        // Handle Audio Upload -> Extract JSON
+        uploadForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            editorSection.classList.add('hidden');
+            loading.classList.remove('hidden');
+            loadingText.textContent = "AI is listening and extracting data...";
+
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+
+            try {
+                const response = await fetch(`/extract/${formatNameInput.value}`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) throw new Error("API request failed");
+                const result = await response.json();
+                
+                // Dynamically build text areas based on the JSON
+                dynamicFields.innerHTML = ''; 
+                for (const [key, value] of Object.entries(result.data)) {
+                    const fieldDiv = document.createElement('div');
+                    fieldDiv.innerHTML = `
+                        <label class="block text-sm font-medium text-gray-700 mb-1 capitalize">${key.replace(/_/g, ' ')}</label>
+                        <textarea name="${key}" rows="2" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-green-500 focus:outline-none">${value || ''}</textarea>
+                    `;
+                    dynamicFields.appendChild(fieldDiv);
+                }
+
+                loading.classList.add('hidden');
+                editorSection.classList.remove('hidden');
+
+            } catch (error) {
+                alert("Error extracting data. Check Docker logs.");
+                console.error(error);
+                loading.classList.add('hidden');
+            }
+        });
+
+        // Handle JSON Edits -> Generate PDF and Auto-Download
+        editorForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const generateBtn = document.getElementById('generatePdfBtn');
+            const originalBtnText = generateBtn.textContent;
+            
+            loading.classList.remove('hidden');
+            loadingText.textContent = "Generating your PDF...";
+            generateBtn.disabled = true;
+
+            // Gather edited data from all textareas
+            const formData = new FormData(editorForm);
+            const editedData = Object.fromEntries(formData.entries());
+
+            try {
+                const response = await fetch(`/generate_pdf/${formatNameInput.value}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(editedData)
+                });
+
+                if (!response.ok) throw new Error("PDF generation failed");
+                const result = await response.json();
+
+                // 🪄 The Auto-Download Trick
+                const tempLink = document.createElement('a');
+                tempLink.href = result.download_url;
+                tempLink.setAttribute('download', ''); // Forces the browser to download the file
+                document.body.appendChild(tempLink);
+                tempLink.click();                      // Programmatically click the link
+                document.body.removeChild(tempLink);   // Clean up
+
+                loading.classList.add('hidden');
+                
+                // Give the user visual success feedback
+                generateBtn.textContent = "✅ PDF Downloaded!";
+                generateBtn.classList.replace('bg-green-600', 'bg-gray-800');
+                
+                // Reset the button after 3 seconds
+                setTimeout(() => {
+                    generateBtn.textContent = originalBtnText;
+                    generateBtn.classList.replace('bg-gray-800', 'bg-green-600');
+                    generateBtn.disabled = false;
+                }, 3000);
+
+            } catch (error) {
+                alert("Error generating PDF.");
+                console.error(error);
+                loading.classList.add('hidden');
+                generateBtn.disabled = false;
+            }
+        });
+    </script>
+</body>
+</html>
