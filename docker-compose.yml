@@ -1,0 +1,32 @@
+services:
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    volumes:
+      - ollama_data:/root/.ollama
+    ports:
+      - "11434:11434"
+
+  app:
+    build:
+      context: .             
+      dockerfile: app/Dockerfile 
+    container_name: scribe-app
+    develop:
+      watch:
+        - action: sync
+          path: ./app
+          target: /app
+    volumes:
+      - ./formats:/app/formats
+      - ./outputs:/app/outputs
+      - ./app/frontend:/app/frontend
+    environment:
+      - OLLAMA_HOST=http://ollama:11434
+    depends_on:
+      - ollama
+    ports:
+      - "8000:8000"
+
+volumes:
+  ollama_data:
