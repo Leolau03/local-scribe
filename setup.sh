@@ -8,7 +8,7 @@ fi
 
 # 2. Start the containers
 echo "🚀 Starting Scribe containers..."
-docker compose up --build
+docker compose up -d --build
 
 # 3. Wait for Ollama API to be ready
 echo "⏳ Waiting for Ollama engine to wake up..."
