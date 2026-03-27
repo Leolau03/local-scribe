@@ -115,10 +115,22 @@
                 // Dynamically build text areas based on the JSON
                 dynamicFields.innerHTML = ''; 
                 for (const [key, value] of Object.entries(result.data)) {
+                    // Check if this is the reasoning field
+                    const isReasoning = key === 'reasoning';
+                    
+                    // Apply different styles and the readonly attribute if it's the reasoning field
+                    const readOnlyAttr = isReasoning ? 'readonly' : '';
+                    const stylingClasses = isReasoning 
+                        ? 'bg-gray-100 text-gray-600 cursor-not-allowed border-gray-200' 
+                        : 'bg-white focus:ring-2 focus:ring-green-500';
+
                     const fieldDiv = document.createElement('div');
                     fieldDiv.innerHTML = `
-                        <label class="block text-sm font-medium text-gray-700 mb-1 capitalize">${key.replace(/_/g, ' ')}</label>
-                        <textarea name="${key}" rows="2" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-green-500 focus:outline-none">${value || ''}</textarea>
+                        <label class="block text-sm font-medium text-gray-700 mb-1 capitalize">
+                            ${isReasoning ? '🤖 AI Reasoning' : key.replace(/_/g, ' ')}
+                        </label>
+                        <textarea name="${key}" rows="${isReasoning ? '3' : '2'}" ${readOnlyAttr} 
+                                  class="w-full border rounded-lg px-3 py-2 focus:outline-none ${stylingClasses}">${value || ''}</textarea>
                     `;
                     dynamicFields.appendChild(fieldDiv);
                 }
