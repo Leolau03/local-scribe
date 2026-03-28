@@ -1,6 +1,14 @@
 from pydantic import BaseModel, Field
+from typing import Dict, Literal
 
 class BaseExtractionSchema(BaseModel):
     reasoning: str = Field(
-        description="Think step-by-step about the transcript. Briefly explain your logic for what information you are extracting and what information you are explicitly ignoring, before you fill out the rest of the fields."
+        description="Think step-by-step about the transcript before extracting data."
     )
+
+    class LayoutConfig:
+        # Options: "UNIQUE" (one-to-one) or "TABLE_FLATTEN" (lists into one box)
+        layout_type: Literal["UNIQUE", "TABLE_FLATTEN"]
+        # Maps a List field name to a single PDF box name
+        table_mapping: Dict[str, str] = {}
+        list_formatting: str | None = None
