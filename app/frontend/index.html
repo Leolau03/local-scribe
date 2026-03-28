@@ -130,7 +130,7 @@
                             ${isReasoning ? '🤖 AI Reasoning' : key.replace(/_/g, ' ')}
                         </label>
                         <textarea name="${key}" rows="${isReasoning ? '3' : '2'}" ${readOnlyAttr} 
-                                  class="w-full border rounded-lg px-3 py-2 focus:outline-none ${stylingClasses}">${value || ''}</textarea>
+                                class="w-full border rounded-lg px-3 py-2 focus:outline-none ${stylingClasses}">${value || ''}</textarea>
                     `;
                     dynamicFields.appendChild(fieldDiv);
                 }
