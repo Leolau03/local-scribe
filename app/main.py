@@ -74,7 +74,43 @@ async def generate_pdf(format_name: str, data: Dict[str, Any]):
     
     final_pdf_data = data.copy()
 
-    if config and getattr(config, "layout_type", "") == "TABLE_FLATTEN":
+    if config and getattr(config, "layout_type", "") == "UNIQUE":
+        
+        # 1. Map simple text fields to the PDF boxes
+        if hasattr(config, "text_mapping"):
+            for schema_field, pdf_box in config.text_mapping.items():
+                if data.get(schema_field): 
+                    final_pdf_data[pdf_box] = data[schema_field]
+
+        # 2. Map the lists of strings to PDF Checkboxes
+        if hasattr(config, "checkbox_mapping"):
+            for list_field, mapping in config.checkbox_mapping.items():
+                if list_field in data:
+                    raw_data = data[list_field]
+                    selected_options = []
+                    
+                    # If it came from the frontend text box, it's a string separated by newlines
+                    if isinstance(raw_data, str):
+                        # Split it back into a list and clean up any extra spaces
+                        selected_options = [opt.strip() for opt in raw_data.split('\n') if opt.strip()]
+                    # If it came directly from the AI, it's already a list
+                    elif isinstance(raw_data, list):
+                        selected_options = raw_data
+
+                    # Now loop through the restored list and check the boxes!
+                    for selected_option in selected_options:
+                        if selected_option in mapping:
+                            pdf_checkbox_name = mapping[selected_option]
+                            final_pdf_data[pdf_checkbox_name] = "/Yes"
+
+        # 3. The "Other" Combo Move (Auto-check the box if text exists)
+        if data.get("other_antecedent_text") and hasattr(config, "other_antecedent_checkbox"):
+            final_pdf_data[config.other_antecedent_checkbox] = "/Yes"
+            
+        if data.get("other_consequence_text") and hasattr(config, "other_consequence_checkbox"):
+            final_pdf_data[config.other_consequence_checkbox] = "/Yes"
+
+    elif config and getattr(config, "layout_type", "") == "TABLE_FLATTEN":
         for list_field, pdf_box in config.table_mapping.items():
             if list_field in data:
                 

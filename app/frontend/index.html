@@ -115,6 +115,24 @@
                 // Dynamically build text areas based on the JSON
                 dynamicFields.innerHTML = ''; 
                 for (const [key, value] of Object.entries(result.data)) {
+                    // --- 🌟 ADD THE NEW ARRAY FORMATTING LOGIC HERE ---
+                    let displayValue = value;
+
+                    // If it's a list, make it pretty for the user
+                    if (Array.isArray(value)) {
+                        // Check if it's a simple list of strings (Like ABC Data)
+                        if (value.length > 0 && typeof value[0] === 'string') {
+                            displayValue = value.join("\n"); 
+                        } 
+                        // It's a list of objects (Like Medication lists)
+                        else {
+                            displayValue = value.map(obj => 
+                                Object.values(obj).join(" - ")
+                            ).join("\n");
+                        }
+                    }
+                    // --------------------------------------------------
+
                     // Check if this is the reasoning field
                     const isReasoning = key === 'reasoning';
                     
@@ -130,7 +148,7 @@
                             ${isReasoning ? '🤖 AI Reasoning' : key.replace(/_/g, ' ')}
                         </label>
                         <textarea name="${key}" rows="${isReasoning ? '3' : '2'}" ${readOnlyAttr} 
-                                class="w-full border rounded-lg px-3 py-2 focus:outline-none ${stylingClasses}">${value || ''}</textarea>
+                                class="w-full border rounded-lg px-3 py-2 focus:outline-none ${stylingClasses}">${displayValue || ''}</textarea>
                     `;
                     dynamicFields.appendChild(fieldDiv);
                 }
